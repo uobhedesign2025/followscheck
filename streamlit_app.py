@@ -1,61 +1,52 @@
 
 import streamlit as st
-import os
 import pandas as pd
 
-st.set_page_config(page_title="FollowCheck", layout="centered")
+st.set_page_config(page_title="FollowCheck", page_icon="🔍", layout="centered")
 
-st.title("📱 Instagram - Monitoramento de Seguidores")
+st.title("🔍 FollowCheck — Análise de Seguidores no Instagram")
 
-st.markdown("### 👤 Digite o @username para iniciar")
-username = st.text_input("Exemplo: @agenciauobhe", max_chars=30)
+st.markdown("Compare duas listas de seguidores (antiga e nova) e descubra quem deixou de seguir, quem começou a seguir e quem permaneceu.")
 
-if username:
-    st.info("🔍 Clique abaixo para simular a busca de seguidores...")
-    if st.button("📥 Buscar Seguidores"):
-        # Simulando scraping
-        seguidores = [f"@seguidor{i}" for i in range(1, 51)]
-        df = pd.DataFrame(seguidores, columns=["@username"])
-        
-        pasta = "dados_seguidores"
-        os.makedirs(pasta, exist_ok=True)
-        caminho = os.path.join(pasta, f"{username.strip('@')}_seguidores.csv")
-        df.to_csv(caminho, index=False)
-        
-        with open(caminho, "rb") as f:
-            st.download_button("📁 Download da lista de seguidores", f, file_name=f"{username}_seguidores.csv")
-        
-        st.success("✅ Lista gerada com sucesso! Salve o arquivo para comparar futuramente.")
-
-st.markdown("---")
-st.markdown("### 📊 Comparar seguidores")
-st.markdown("Envie o arquivo anterior e o atual para ver quem saiu ou entrou.")
-
+# Upload de arquivos CSV
 col1, col2 = st.columns(2)
 with col1:
-    arquivo_antigo = st.file_uploader("📤 Lista antiga", type=["csv"], key="antigo")
+    old_file = st.file_uploader("📂 Lista antiga", type=["csv"], key="old")
 with col2:
-    arquivo_novo = st.file_uploader("📥 Lista nova", type=["csv"], key="novo")
+    new_file = st.file_uploader("📂 Lista nova", type=["csv"], key="new")
 
-if arquivo_antigo and arquivo_novo:
-    df_antigo = pd.read_csv(arquivo_antigo)
-    df_novo = pd.read_csv(arquivo_novo)
+if old_file and new_file:
+    old_df = pd.read_csv(old_file)
+    new_df = pd.read_csv(new_file)
 
-    antigos = set(df_antigo["@username"])
-    novos = set(df_novo["@username"])
+    # Extrai só os nomes de usuário (assumindo que a coluna relevante se chame 'username' ou similar)
+    old_usernames = set(old_df.iloc[:, 0].dropna().astype(str).str.strip())
+    new_usernames = set(new_df.iloc[:, 0].dropna().astype(str).str.strip())
 
-    perdidos = antigos - novos
-    novos_seguidores = novos - antigos
-    mantidos = antigos & novos
+    lost_followers = sorted(list(old_usernames - new_usernames))
+    new_followers = sorted(list(new_usernames - old_usernames))
+    maintained = sorted(list(old_usernames & new_usernames))
 
-    st.markdown("### 🔍 Resultado da Análise:")
-    st.write(f"👋 Deixaram de seguir: {len(perdidos)}")
-    st.write(f"➕ Novos seguidores: {len(novos_seguidores)}")
-    st.write(f"✅ Seguidores mantidos: {len(mantidos)}")
+    # Resultados
+    st.subheader("🔎 Resultado da Análise:")
+    st.write(f"📉 Total de seguidores antigos: **{len(old_usernames)}**")
+    st.write(f"📈 Total de seguidores atuais: **{len(new_usernames)}**")
+    st.write(f"👋 Deixaram de seguir: **{len(lost_followers)}**")
+    st.write(f"➕ Novos seguidores: **{len(new_followers)}**")
+    st.write(f"✅ Seguidores mantidos: **{len(maintained)}**")
 
-    if perdidos:
-        st.warning("🚫 Deixaram de seguir:")
-        st.write(list(perdidos))
-    if novos_seguidores:
-        st.success("🎉 Novos seguidores:")
-        st.write(list(novos_seguidores))
+    # Mostrar listas
+    with st.expander("👋 Ver quem deixou de seguir"):
+        if lost_followers:
+            st.write(lost_followers)
+        else:
+            st.write("Ninguém deixou de seguir.")
+
+    with st.expander("➕ Ver novos seguidores"):
+        if new_followers:
+            st.write(new_followers)
+        else:
+            st.write("Nenhum novo seguidor.")
+
+    with st.expander("✅ Ver seguidores mantidos"):
+        st.write(maintained)
